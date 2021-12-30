@@ -1,66 +1,71 @@
 import './App.css';
-import { Hands, HAND_CONNECTIONS } from '@mediapipe/hands';
-import { Camera } from '@mediapipe/camera_utils';
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
-import { useEffect, useRef } from 'react';
+import * as handpose from '@tensorflow-models/handpose';
+import Webcam from 'react-webcam';
+import { useEffect, useRef, useMemo } from 'react';
+import * as tf from '@tensorflow/tfjs';
+import * as tflite from '@tensorflow/tfjs-tflite';
+import { drawHand } from './utilities';
+import OutputCanvas from './components/OutputCanvasComponent';
 
 
 function App() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const hands = new Hands({
-    locateFile: file => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1635986972/${file}`;
-    }
-  });
+  const webcamRef = useRef(null);
+  const pathToModel = '../public/model/model.json';
 
-  const onResult = (results) => {
-    // if (canvasRef.current === null || canvasRef.current === undefined) console.log("print");
-    const canvasCtx = canvasRef.current.getContext('2d');
-    const canvasElement = canvasRef.current;
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(
-      results.image, 0, 0, canvasElement.width, canvasElement.height
-    );
-    console.log("results", results);
-    if (results.multiHandLandmarks){
-      for(const landmarks of results.multiHandLandmarks){
-        drawConnectors(canvasCtx, landmarks ,HAND_CONNECTIONS,
-          {color: '#00ff00', lineWidth: 5});
-          drawLandmarks(canvasCtx, landmarks, {color: '#ff0000', lineWidth: 2});
+  useEffect(() => {
+    const fu = async () => await tf.loadLayersModel(pathToModel);
+    console.log(fu())
+
+  }, [])  
+  const videoConstraints = {
+    width: 1280,
+    height: 720,
+    facingMode: "user"
+  };
+
+
+  const runHandPose = async () => {
+    const model = await handpose.load({ detectionConfidence: 0.6 });
+    setInterval(() => detect(model), 100);
+  }
+
+  const detect = async (model) => {
+    if (typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4) {
+      const video = webcamRef.current.video;
+
+      const predict = await model.estimateHands(video);
+      if (predict.length > 0) {
+        const landmarks = predict[0].landmarks;
+        for (let i = 0; i < landmarks.length; i++) {
+          const [x, y, z] = landmarks[i];
+          console.log(`keypoint: ${i}: ${x} ${y} ${z}]`);
+          
+        }
       }
+
     }
-    canvasCtx.restore();
   }
 
   useEffect(() => {
-    const videoElement = videoRef.current;
-    if (videoElement === null || videoElement === undefined) return;
-    hands.setOptions({
-      maxNumHands: 1,
-      minDetectionConfidence: .8,
-      minTrackingConfidence: .6
-    });
-    hands.onResults(onResult);
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await hands.send({image: videoElement})
-      },
-      width: 1280,
-      height: 720
-    });
-    camera.start()
-   }, [])
+    runHandPose();
+  }, []);
 
   return (
     <div className="App">
-      <video className="input_video" ref={videoRef}></video>
-      <canvas
-        ref={canvasRef}
-        className='output_canvas' 
-        width={"1280px"} 
-        height={"720px"}></canvas>
+      <Webcam
+        audio={false}
+        ref={webcamRef}
+        mirrored
+        screenshotFormat="image/jpeg"
+        width={400}
+        videoConstraints={videoConstraints}
+        className='webcam'
+
+      ></Webcam>
+
+      <OutputCanvas />
     </div>
   );
 }
