@@ -27,7 +27,6 @@ const gesture = (predictedValue, xState, setXState,
     yState, setYState,
     zState, setZState
 ) => {
-    // console.log(e.keyCode);
     const direction = DIRECTION_MAP[predictedValue];
     if (direction === 'left') {
         console.log("go left");
