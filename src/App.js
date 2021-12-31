@@ -1,22 +1,18 @@
 import './App.css';
 import * as handpose from '@tensorflow-models/handpose';
 import Webcam from 'react-webcam';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
-import * as tflite from '@tensorflow/tfjs-tflite';
 import { drawHand } from './utilities';
 import OutputCanvas from './components/OutputCanvasComponent';
 
 
 function App() {
   const webcamRef = useRef(null);
-  const pathToModel = '../public/model/model.json';
+  const pathToModel = '/model/tfjs/model.json';
+  const tfjs_model = useMemo(async () => await tf.loadLayersModel(pathToModel), [pathToModel]);
+  const [direction, setDirection] = useState(null);
 
-  useEffect(() => {
-    const fu = async () => await tf.loadLayersModel(pathToModel);
-    console.log(fu())
-
-  }, [])  
   const videoConstraints = {
     width: 1280,
     height: 720,
@@ -26,7 +22,7 @@ function App() {
 
   const runHandPose = async () => {
     const model = await handpose.load({ detectionConfidence: 0.6 });
-    setInterval(() => detect(model), 100);
+    setInterval(() => detect(model), 500);
   }
 
   const detect = async (model) => {
@@ -38,13 +34,24 @@ function App() {
       const predict = await model.estimateHands(video);
       if (predict.length > 0) {
         const landmarks = predict[0].landmarks;
+        let keypoints = [];
         for (let i = 0; i < landmarks.length; i++) {
-          const [x, y, z] = landmarks[i];
-          console.log(`keypoint: ${i}: ${x} ${y} ${z}]`);
-          
+          const [x, y] = landmarks[i];
+          keypoints.push(x,y);
         }
+        tfjs_model.then(res => {
+          try{
+            const out = tf.tensor([keypoints]);
+            tfjs_model
+              .then(res => res.predict(out))
+              .then(predictedProb => predictedProb.argMax(1))
+              .then(predictValue => predictValue.dataSync())
+              .then(data => setDirection(data[0]));
+          }catch(e){
+            console.log(e.message);
+          }
+        })
       }
-
     }
   }
 
@@ -54,6 +61,8 @@ function App() {
 
   return (
     <div className="App">
+      {/* {tfjs_model.then(res => console.log(Object.getOwnPropertyNames(res)))} */}
+      {/* {tfjs_model.then(res =>  .log(res.inputs))} */}
       <Webcam
         audio={false}
         ref={webcamRef}
