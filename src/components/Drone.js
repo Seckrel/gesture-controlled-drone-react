@@ -29,9 +29,12 @@ export default function Model({ ...props }) {
     const xDirection = props.direction.x;
     const yDirection = props.direction.y;
     const zDirection = props.direction.z;
-    while (xDirection.length > 0) canvas.position.x += xDirection.pop();
-    while (yDirection.length > 0) canvas.position.y += yDirection.pop();
-    while (zDirection.length > 0) canvas.position.z += zDirection.pop();
+    // while (xDirection.length > 0) canvas.position.x += xDirection.pop();
+    // while (yDirection.length > 0) canvas.position.y += yDirection.pop();
+    // while (zDirection.length > 0) canvas.position.z += zDirection.pop();
+    if (xDirection.length > 0) canvas.position.x += xDirection.pop();
+    if (yDirection.length > 0) canvas.position.y += yDirection.pop();
+    if (zDirection.length > 0) canvas.position.z += zDirection.pop();
   })
 
 
